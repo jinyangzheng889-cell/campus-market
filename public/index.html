@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏫 校园二手交易平台</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <h1 class="logo" onclick="location.href='/'">🎓 校园二手</h1>
+      <nav class="nav-links">
+        <a href="#" class="nav-link active">全部商品</a>
+        <button class="btn btn-primary" onclick="openPostModal()">+ 发布商品</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Search & Filter Bar -->
+  <section class="filter-bar">
+    <div class="filter-inner">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="搜索你想要的二手好物..." oninput="debounceSearch()">
+      </div>
+      <select id="sortSelect" onchange="loadItems()" class="sort-select">
+        <option value="newest">🕐 最新发布</option>
+        <option value="price_asc">💰 价格从低到高</option>
+        <option value="price_desc">💎 价格从高到低</option>
+      </select>
+    </div>
+    <div class="category-chips" id="categoryChips">
+      <button class="chip active" data-cat="all">全部</button>
+    </div>
+    <div class="status-toggle">
+      <button class="status-btn active" data-status="available" onclick="setStatus('available')">🟢 在售</button>
+      <button class="status-btn" data-status="sold" onclick="setStatus('sold')">🔴 已售</button>
+      <button class="status-btn" data-status="all" onclick="setStatus('all')">📋 全部</button>
+    </div>
+  </section>
+
+  <!-- Items Grid -->
+  <main class="items-grid" id="itemsGrid">
+    <div class="loading">加载中...</div>
+  </main>
+
+  <!-- Empty State -->
+  <div class="empty-state" id="emptyState" style="display:none">
+    <div class="empty-icon">📦</div>
+    <h2>暂无商品</h2>
+    <p>快来发布第一件二手宝贝吧！</p>
+    <button class="btn btn-primary" onclick="openPostModal()">发布商品</button>
+  </div>
+
+  <!-- Pagination -->
+  <div class="item-count" id="itemCount"></div>
+
+  <!-- Post Modal -->
+  <div class="modal-overlay" id="postModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>📝 发布二手商品</h2>
+        <button class="modal-close" onclick="closePostModal()">✕</button>
+      </div>
+      <form id="postForm" onsubmit="submitPost(event)">
+        <div class="form-group">
+          <label>商品标题 *</label>
+          <input type="text" id="postTitle" placeholder="例如：九成新 MacBook Air M2" required maxlength="60">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>价格 (元) *</label>
+            <input type="number" id="postPrice" placeholder="0.00" required min="0" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>分类 *</label>
+            <select id="postCategory" required></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>成色</label>
+            <select id="postCondition">
+              <option value="new">🆕 全新</option>
+              <option value="like_new">✨ 几乎全新</option>
+              <option value="good" selected>👍 良好</option>
+              <option value="fair">👌 一般</option>
+              <option value="old">📦 较旧</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>交易地点</label>
+            <input type="text" id="postLocation" placeholder="如：X号楼/图书馆门口" maxlength="30">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>联系方式 *</label>
+            <input type="text" id="postContact" placeholder="微信号/QQ号/手机号" required maxlength="40">
+          </div>
+          <div class="form-group">
+            <label>你的昵称（买家跟你交流时会看到）</label>
+            <input type="text" id="postSellerNick" placeholder="给自己起个名，方便买家@你" maxlength="20">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>商品描述</label>
+          <textarea id="postDesc" rows="3" placeholder="描述一下你的商品吧~ 比如购买时间、使用情况、出售原因..." maxlength="500"></textarea>
+        </div>
+        <div class="form-group">
+          <label>商品图片（最多6张）</label>
+          <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()">
+            <span class="upload-icon">📷</span>
+            <span>点击上传图片</span>
+            <span class="upload-hint">支持 JPG/PNG/GIF/WebP，每张不超过5MB</span>
+          </div>
+          <input type="file" id="imageInput" accept="image/*" multiple style="display:none" onchange="previewImages(event)">
+          <div class="image-previews" id="imagePreviews"></div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closePostModal()">取消</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">发布商品</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal detail-modal">
+      <div class="modal-header">
+        <h2 id="detailTitle"></h2>
+        <button class="modal-close" onclick="closeDetailModal()">✕</button>
+      </div>
+      <div class="detail-body" id="detailBody"></div>
+      <!-- Chat Section -->
+      <div class="chat-section">
+        <div class="chat-header">
+          <span>💬 买家留言</span>
+          <span class="chat-count" id="chatCount"></span>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty">暂无留言，来问点什么吧~</div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="chatNickname" placeholder="你的昵称" maxlength="16" class="chat-nick-input">
+          <div class="chat-input-row">
+            <input type="text" id="chatContent" placeholder="输入你想问的..." maxlength="300" onkeydown="if(event.key==='Enter')sendMessage()">
+            <button class="btn btn-primary btn-sm" onclick="sendMessage()">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
